@@ -12,11 +12,32 @@
 using namespace std;
 
 
-#define SIZE_AUDIO_FRAME (2)
+#define SIZE_AUDIO_FRAME (BUFFSIZE * 4)
 
 int vola=100;
 int volb=100;
 
+int volume_adjust(short  * in_buf, short  * out_buf, int in_vol)
+{
+    float weight;
+    //static int vol_b;
+   // static float weight_b;
+
+    //if(in_vol != vol_b) {
+    if(in_vol >=100)weight =1;
+    else if(in_vol<=0)weight = 0;
+    else {
+        in_vol= (in_vol + 5)/10 ; /*四舍五入，取整*/
+        weight = in_vol/10.0;       /*按照0 0.1 ，0.2 - 0.9，1的方式给数据取权重*/
+    }
+   // weight_b = weight;
+    //vol_b = in_vol;
+    //} else weight = weight_b;
+
+    *out_buf = (*in_buf)*weight;
+
+    return 0;
+}
 
 void Mix(char sourseFile[10][SIZE_AUDIO_FRAME],int number,char *objectFile)
 {
@@ -30,10 +51,14 @@ void Mix(char sourseFile[10][SIZE_AUDIO_FRAME],int number,char *objectFile)
     for (i=0;i<SIZE_AUDIO_FRAME/2;i++)
     {
         int temp=0;
+        /*channal 2 vol adjust*/
+        volume_adjust( (short*)(sourseFile[1] + i*2),(short*)(sourseFile[1] + i*2),volb);
+
         for (j=0;j<number;j++)
         {
             temp+=*(short*)(sourseFile[j]+i*2);
         }
+
         output=(int)(temp*f);
         if (output>MAX)
         {
@@ -52,27 +77,7 @@ void Mix(char sourseFile[10][SIZE_AUDIO_FRAME],int number,char *objectFile)
         *(short*)(objectFile+i*2)=(short)output;
     }
 }
-int volume_adjust(short  * in_buf, short  * out_buf, int in_vol)
-{
-    float weight;
-    //static int vol_b;
-   // static float weight_b;
 
-    //if(in_vol != vol_b) {
-    if(in_vol >100)weight =1;
-    else if(in_vol<0)weight =0;
-    else {
-        in_vol= (in_vol + 5)/10 ; /*四舍五入，取整*/
-        weight = in_vol/10.0;       /*按照0 0.1 ，0.2 - 0.9，1的方式给数据取权重*/
-    }
-   // weight_b = weight;
-    //vol_b = in_vol;
-    //} else weight = weight_b;
-
-    *out_buf = (*in_buf)*weight;
-
-    return 0;
-}
 
 void * threadbody(void *arg)
 {
@@ -133,9 +138,8 @@ int main(int argc ,char * argv[])
     }
 #endif
 
-    short data1,data2,date_mix;
     int ret1,ret2;
-    char sourseFile[10][2];
+    char sourseFile[3][SIZE_AUDIO_FRAME];
     pthread_t pid;
     alsaapi alsaobj;
 
@@ -146,8 +150,10 @@ int main(int argc ,char * argv[])
     }
     int bufsize = alsaobj.getbufsize();
     int frames = alsaobj.getframes();
-    char * buf = (char *)malloc( bufsize );
-    int index=0;
+   // char * buf = (char *)malloc( bufsize );
+    //short *data1 =(short *)malloc( bufsize );
+   // short *data2 =(short *)malloc( bufsize );
+
 #if 0
 
     while(1)
@@ -177,37 +183,40 @@ int main(int argc ,char * argv[])
         perror("fopen");
 #endif
 
-    memset(buf,0,bufsize);
+    //memset(buf,0,bufsize);
     DEBUGLOG("bufsize:%d\n",bufsize);
     pthread_create(&pid,NULL,threadbody,NULL);
     while(1)
     {
-        ret1 = fread(&data1,2,1,fp1);
-        ret2 = fread(&data2,2,1,fp2);
-        volume_adjust(&data1,&data1,vola);
-        volume_adjust(&data2,&data2,volb);
-        *(short*) sourseFile[0] = data1;
-        *(short*) sourseFile[1] = data2;
+        ret1 = fread(sourseFile[0],SIZE_AUDIO_FRAME,1,fp1);
+        ret2 = fread(sourseFile[1],SIZE_AUDIO_FRAME,1,fp2);
+        //volume_adjust(&data1,&data1,vola);
+        //volume_adjust(&data2,&data2,volb);
+
 
         if(ret1>0 && ret2>0)
         {
-            Mix(sourseFile,2,(char *)&date_mix);
+            Mix(sourseFile,2,sourseFile[2]);
             /*
             if( data1 < 0 && data2 < 0)
                 date_mix = data1+data2 - (data1 * data2 / -(pow(2,16-1)-1));
             else
                 date_mix = data1+data2 - (data1 * data2 / (pow(2,16-1)-1));*/
 
-            if(date_mix > pow(2,16-1) || date_mix < -pow(2,16-1))
-                printf("mix error\n");
+            //if(date_mix > pow(2,16-1) || date_mix < -pow(2,16-1))
+            //    printf("mix error\n");
+            alsaobj.write(sourseFile[2],frames);
+            memset(sourseFile[2],0,bufsize);
         }
         else if( (ret1 > 0) && (ret2==0))
         {
-            date_mix = data1;
+            alsaobj.write(sourseFile[0],frames);
+            memset(sourseFile[2],0,bufsize);
         }
         else if( (ret2 > 0) && (ret1==0))
         {
-            date_mix = data2;
+            alsaobj.write(sourseFile[1],frames);
+            memset(sourseFile[2],0,bufsize);
         }
         else if( (ret1 == 0) && (ret2 == 0))
         {
@@ -215,18 +224,8 @@ int main(int argc ,char * argv[])
         }
 
 
-        memcpy( buf + index ,(char *)&date_mix ,2);
-        index +=2;
-        //buf[index++] = date_mix;
-        //buf[index++] = date_mix>>8;
-
-        if(index >= (bufsize)) {
-            alsaobj.write(buf,frames);
-            memset(buf,0,bufsize);
             //DEBUGLOG("index:%d\n",index);
-            index = 0;
-        }
-        //fwrite(&date_mix,2,1,fpm);
+
     }
     fclose(fp1);
     fclose(fp2);

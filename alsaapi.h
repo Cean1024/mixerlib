@@ -11,7 +11,7 @@
 #include <malloc.h>
 #include "globaflags.h"
 
-#define AUTOSETFRAME
+//#define AUTOSETFRAME
 
 //#undef INTERRUPUTEINPUT
 
