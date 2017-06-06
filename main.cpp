@@ -14,6 +14,10 @@ using namespace std;
 
 #define SIZE_AUDIO_FRAME (2)
 
+int vola=100;
+int volb=100;
+
+
 void Mix(char sourseFile[10][SIZE_AUDIO_FRAME],int number,char *objectFile)
 {
     //归一化混音
@@ -48,6 +52,28 @@ void Mix(char sourseFile[10][SIZE_AUDIO_FRAME],int number,char *objectFile)
         *(short*)(objectFile+i*2)=(short)output;
     }
 }
+int volume_adjust(short  * in_buf, short  * out_buf, int in_vol)
+{
+    float weight;
+    //static int vol_b;
+   // static float weight_b;
+
+    //if(in_vol != vol_b) {
+    if(in_vol >100)weight =1;
+    else if(in_vol<0)weight =0;
+    else {
+        in_vol= (in_vol + 5)/10 ; /*四舍五入，取整*/
+        weight = in_vol/10.0;       /*按照0 0.1 ，0.2 - 0.9，1的方式给数据取权重*/
+    }
+   // weight_b = weight;
+    //vol_b = in_vol;
+    //} else weight = weight_b;
+
+    *out_buf = (*in_buf)*weight;
+
+    return 0;
+}
+
 void * threadbody(void *arg)
 {
     char inputchar;
@@ -75,16 +101,20 @@ void * threadbody(void *arg)
         switch(inputchar)
         {
         case KEYCODE_L:
-            printf("LEFT\n");
+            if(volb>=10) volb-=10;
+            printf("LEFT volb:%d\n",volb);
             break;
         case KEYCODE_R:
-            printf("RIGHT\n");
+            if(volb<=90) volb+=10;
+            printf("RIGHT volb:%d\n",volb);
             break;
         case KEYCODE_U:
-            printf("UP\n");
+            if(vola<=90) vola+=10;
+            printf("UP vola:%d\n",vola);
             break;
         case KEYCODE_D:
-            printf("DOWN\n");
+            if(vola>=10) vola-=10;
+            printf("DOWN vola:%d\n",vola);
             break;
         default:
             printf("value: %c = 0x%02X = %d\n", inputchar, inputchar, inputchar);
@@ -154,6 +184,8 @@ int main(int argc ,char * argv[])
     {
         ret1 = fread(&data1,2,1,fp1);
         ret2 = fread(&data2,2,1,fp2);
+        volume_adjust(&data1,&data1,vola);
+        volume_adjust(&data2,&data2,volb);
         *(short*) sourseFile[0] = data1;
         *(short*) sourseFile[1] = data2;
 
