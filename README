@@ -1,0 +1,4 @@
+##mixerlib##
+编译方法：
+	qmake
+	make
