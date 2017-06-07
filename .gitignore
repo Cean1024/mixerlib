@@ -3,3 +3,4 @@ mixerlib
 *.wav
 *Makefile
 *.pro.*
+sftp.sh
