@@ -7,6 +7,7 @@
 #include <cmath>
 #include <termios.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include "alsaapi.h"
 using namespace std;
@@ -16,6 +17,9 @@ using namespace std;
 
 int vola=100;
 int volb=100;
+int kfd = 0;
+struct termios cooked;
+
 
 int volume_adjust(short  * in_buf, short  * out_buf, int in_vol)
 {
@@ -82,8 +86,7 @@ void Mix(char sourseFile[10][SIZE_AUDIO_FRAME],int number,char *objectFile)
 void * threadbody(void *arg)
 {
     char inputchar;
-    int kfd = 0;
-    struct termios cooked, raw;
+struct termios raw;
     tcgetattr(kfd, &cooked); // 得到 termios 结构体保存，然后重新配置终端
     memcpy(&raw, &cooked, sizeof(struct termios));
     raw.c_lflag &=~ (ICANON | ECHO);
@@ -124,10 +127,17 @@ void * threadbody(void *arg)
         default:
             printf("value: %c = 0x%02X = %d\n", inputchar, inputchar, inputchar);
         }
-
     }
 
 }
+
+void signal_handler(int sig)
+{
+    DEBUGLOG("in %s\n",__func__);
+    tcsetattr(kfd, TCSANOW, &cooked);
+    exit (0);
+}
+
 int main(int argc ,char * argv[])
 {
     FILE * fp1,*fp2;//*fpm;
@@ -143,7 +153,9 @@ int main(int argc ,char * argv[])
     pthread_t pid;
     alsaapi alsaobj;
 
-    ret1=alsaobj.init(44100,2,16);
+
+    signal(SIGINT,signal_handler);
+    ret1=alsaobj.init(48000,2,16);
     if(ret1< 0) {
         perror("alsa");
         exit (-1);
@@ -182,7 +194,8 @@ int main(int argc ,char * argv[])
     if(fp2==NULL)
         perror("fopen");
 #endif
-
+    ret1 = fread(sourseFile[0],56,1,fp1);
+    ret2 = fread(sourseFile[1],56,1,fp2);
     //memset(buf,0,bufsize);
     DEBUGLOG("bufsize:%d\n",bufsize);
     pthread_create(&pid,NULL,threadbody,NULL);
