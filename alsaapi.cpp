@@ -232,18 +232,18 @@ r_status alsaapi::audioinit ()
 r_status alsaapi::writei(char *buf ,int frames)
 {
     int err;
-    err = snd_pcm_writei( pcm_param.playback_handle , buf, frames);
+    if( (err = snd_pcm_writei( pcm_param.playback_handle , buf, frames))<0) {
     if ( err == -EPIPE) {
 
         //fprintf(stderr, "underrun accourred, frames:%d\n",frames);
         snd_pcm_prepare( pcm_param.playback_handle );
 
-    } else if ( err < 0 ) {
+    } else {
 
         fprintf(stderr, "write to audio interface failed (%s) value:%d\n", snd_strerror(err),err);
         audioinit();
 
-    } else if ( err < frames ) {
+    } } else if ( err < frames ) {
 
         fprintf(stderr, "short write,write %d frames\n", err);
 

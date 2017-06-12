@@ -178,7 +178,7 @@ int main(int argc ,char * argv[])
         exit (0);
     }
 #endif
-    int ret1,ret2;
+    int ret,flag;
     char sourseFile[BUFNUMBER][SIZE_AUDIO_FRAME];
     pthread_t pid1,pid2;
     alsaapi alsaobj;
@@ -204,8 +204,8 @@ int main(int argc ,char * argv[])
 #endif
 
 
-    ret1 = read(fd1,sourseFile[0],44);
-    ret2 = read(fd2,sourseFile[1],44);
+    ret = read(fd1,sourseFile[0],44);
+    ret = read(fd2,sourseFile[1],44);
 
     WAVE *head1,*head2,*head3;
     head1=(WAVE *)sourseFile[0];
@@ -223,8 +223,8 @@ int main(int argc ,char * argv[])
 
     DEBUGLOG("select format info:\nSampleRate:%d\nChannels:%d\nBitsperSample:%d\n",head3->SampleRate,head3->NumChannels,head3->BitsPerSample);
 
-    ret1=alsaobj.init(head3->SampleRate,head3->NumChannels,head3->BitsPerSample);
-    if(ret1< 0) {
+    ret=alsaobj.init(head3->SampleRate,head3->NumChannels,head3->BitsPerSample);
+    if(ret< 0) {
         perror("alsa");
         exit (-1);
     }
@@ -236,8 +236,8 @@ int main(int argc ,char * argv[])
 
     while(1)
     {
-        ret1 = read(fd1,buf,bufsize);
-        if(ret1>0) alsaobj.writei(buf,frames);
+        ret = read(fd1,buf,bufsize);
+        if(ret>0) alsaobj.writei(buf,frames);
         else exit(0);
         usleep(1000);
     }
@@ -254,47 +254,33 @@ int main(int argc ,char * argv[])
 
     while(1)
     {
-        ret1 = read(fd1,buf,bufsizelow);
-        ret2 = read(fd2,sourseFile[1],SIZE_AUDIO_FRAME);
+        if((ret = read(fd1,buf,bufsizelow))>0) {
 
-        if(ret1>0 && ret2>0)
-        {
             resample(buf,sourseFile[0],SIZE_AUDIO_FRAME,samplerate1,samplerate2);
 
             /*channal 1 vol adjust*/
             volume_adjust( sourseFile,0,vola);
+            flag |=1;
+        }
 
+        if((ret = read(fd2,sourseFile[1],SIZE_AUDIO_FRAME))>0) {
             /*channal 2 vol adjust*/
             volume_adjust( sourseFile,1,volb);
+            flag |=2;
+        }
 
+        if(flag ==3) {
             index =2;
-            tmpf = frames;
             Mix(sourseFile,index,sourseFile[2]);
-
-        }
-        else if( (ret1 > 0) && (ret2==0))
-        {
-            /*channal 1 vol adjust*/
+        } else if( flag ==2) {
             index =0;
-            tmpf = framelow;
-            volume_adjust( sourseFile,index,vola);
-
-        }
-        else if( (ret2 > 0) && (ret1==0))
-        {
-            /*channal 2 vol adjust*/
+        } else if( flag ==1) {
             index =1;
-            tmpf = frames;
-            volume_adjust( sourseFile,1,volb);
         }
-        else if( (ret1 == 0) && (ret2 == 0))
-        {
-            break;
-        }
-        alsaobj.write(sourseFile[index],tmpf);
-        //memset(sourseFile[2],0,bufsize);
+        else break;
 
-            //DEBUGLOG("index:%d\n",index);
+        alsaobj.write(sourseFile[index],frames);
+        flag=0;
 
     }
     close(fd1);
