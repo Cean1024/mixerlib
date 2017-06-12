@@ -75,7 +75,7 @@ r_status alsaapi::audioinit ()
     if (( err = snd_pcm_open (&pcm_param.playback_handle, \
                               "hw:0", pcm_param.streamRDWR,\
                               pcm_param.mode) ) < 0) {
-        fprintf(stderr, "cannot open audio device %s (%s)\n", "hw:0", snd_strerror(err));
+        fprintf(stderr, "cannot open audio device %s (%s)\n", "default", snd_strerror(err));
         pcm_param.playback_handle = NULL;
         return IFAILED;
     }
@@ -235,7 +235,7 @@ r_status alsaapi::writei(char *buf ,int frames)
     err = snd_pcm_writei( pcm_param.playback_handle , buf, frames);
     if ( err == -EPIPE) {
 
-        fprintf(stderr, "underrun accourred, frames:%d\n",frames);
+        //fprintf(stderr, "underrun accourred, frames:%d\n",frames);
         snd_pcm_prepare( pcm_param.playback_handle );
 
     } else if ( err < 0 ) {
@@ -252,7 +252,7 @@ r_status alsaapi::writei(char *buf ,int frames)
 }
 r_status alsaapi::write(char *buf ,int frames)
 {
-    int err ;
+
 
     if ( pcm_param.playback_handle == NULL ) {
         fprintf(stderr, "playback_handle == NULL please check!!\n");
@@ -260,6 +260,7 @@ r_status alsaapi::write(char *buf ,int frames)
     }
 
 #ifdef INTERRUPUTEINPUT
+    int err ;
     while( frames )
     {
 
