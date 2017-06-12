@@ -182,7 +182,75 @@ typedef struct timeformatdate {
 #define KEYCODE_Q 0x71
 
 
+typedef struct wave_tag
 
+{
+
+    char              ChunkID[4];       // "RIFF"标志
+
+    unsigned  int ChunkSize;    // 文件长度(WAVE文件的大小, 不含前8个字节)
+
+    char              Format[4];    // "WAVE"标志
+
+
+
+    char             SubChunk1ID[4];   // "fmt "标志
+
+    unsigned int    SubChunk1Size;    /*
+
+                                    * 过渡字节(不定)
+
+                                    * 16 for PCM. This is the size of the rest of the
+
+                                    * Subchunk which follows this number.
+
+                                    */
+
+    unsigned short   AudioFormat;  /*
+
+                                    * 格式类别(10H为PCM格式的声音数据)
+
+                                    * PCM=1 (i.e. Linear quantization)
+
+                                    * Values other than 1 indicate some form of compression.
+
+                                    */
+
+    unsigned short  NumChannels;  // 通道数(单声道为1, 双声道为2)
+
+    unsigned int    SampleRate;       // 采样率(每秒样本数), 表示每个通道的播放速度
+
+    unsigned int ByteRate;     /*
+
+                                     * 波形音频数据传输速率, 其值为:通道数*每秒数据位数*每样本的数据位数/8
+
+                                     * 播放软件可以利用该值估计缓冲区大小
+
+                                     */
+
+    unsigned short  BlockAlign;       /*
+
+                                      * 每样本的数据位数(按字节算), 其值为:通道数*每样本的数据位值/8， 播放
+
+                                     * 软件需要一次处理多个该值大小的字节数据, 以便将其值用于缓冲区的调整
+
+                                     */
+
+    unsigned short BitsPerSample;    /*
+
+                                    * 每样本的数据位数, 表示每个声道中各个样本的数据位数. 如果有多个声道,
+
+                                    * 对每个声道而言, 样本大小都一样
+
+                                    */
+
+
+
+    char              SubChunk2ID[4];   // 数据标记"data"
+
+    unsigned int SubChunk2Size;    // 语音数据的长度
+
+} WAVE;
 
 #endif // GLOBAFLAGS_H
 
